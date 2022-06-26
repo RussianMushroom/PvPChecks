@@ -1,4 +1,5 @@
 # PvPChecks
+Plugin for Terraria servers running TShock.
 Checks for illegitimate PvP equipment
 
 ## Features:
