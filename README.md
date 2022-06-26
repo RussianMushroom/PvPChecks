@@ -13,6 +13,7 @@ Base permission: `pvpchecks`
 Function | Permission | 
 --- | --- | 
 Override all checks | `.all` | 
+Ignore region bans | `.ignoreregion` |
 Banned items | `.usebannedweps` | 
 Banned buffs | `.usebannedbuffs` | 
 All prefixed weapons | `.useillegalweps` | 
