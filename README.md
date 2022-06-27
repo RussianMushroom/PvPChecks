@@ -21,3 +21,11 @@ Prefixed ammo | `.useprefixedammo` |
 Prefixed amour | `.useprefixedarmor` | 
 Duplicate accessories | `.havedupeaccessories`|
 7th accessory slot | `.use7thslot` |
+
+Command permission: `pvpchecks.command`
+
+Command | Permission | 
+--- | --- | 
+`/pc help` | `.help` | 
+`/pc <ai, ri, ab, rb, ap, rp, ar, rr>` | `.edit` |
+`/pc list` | `.list` | 
