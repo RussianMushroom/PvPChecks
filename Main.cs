@@ -3,15 +3,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
 using TShockAPI.DB;
+using TShockAPI.Hooks;
 
 namespace PvPChecks 
 {
     [ApiVersion(2, 1)]
-    public class Main : TerrariaPlugin 
+    public class Main : TerrariaPlugin
     {
         public override string Name => "PvPChecks";
         public override string Author => "Johuan, maintained by RussianMushroom";
@@ -22,10 +24,14 @@ namespace PvPChecks
 
         public string URI = Path.Combine(TShock.SavePath, "pvpchecks.json");
 
-        List<int> IllegalMeleePrefixes = new List<int>();
-        List<int> IllegalRangedPrefixes = new List<int>();
-        List<int> IllegalMagicPrefixes = new List<int>();
+        public List<int> IllegalMeleePrefixes = new List<int>();
+        public List<int> IllegalRangedPrefixes = new List<int>();
+        public List<int> IllegalMagicPrefixes = new List<int>();
 
+        public enum Infringement
+        {
+            BannedItem, BannedBuff, IllegalPrefix, PrefixedArmour, PrefixedAmmo, Duplication, SeventhSlot
+        }
 
         public Main(Terraria.Main game) : base(game) { }
 
@@ -35,11 +41,11 @@ namespace PvPChecks
             ServerApi.Hooks.WorldSave.Register(this, OnSave);
             ServerApi.Hooks.NetGetData.Register(this, OnGetData);
 
-
+            TShockAPI.Hooks.RegionHooks.RegionEntered += OnRegionEntered;
             GetDataHandlers.PlayerUpdate += OnPlayerUpdate;
             TShockAPI.Hooks.GeneralHooks.ReloadEvent += OnReload;
         }
-
+        
         protected override void Dispose(bool disposing) 
         {
 
@@ -49,7 +55,7 @@ namespace PvPChecks
                 ServerApi.Hooks.WorldSave.Deregister(this, OnSave);
                 ServerApi.Hooks.NetGetData.Deregister(this, OnGetData);
 
-
+                TShockAPI.Hooks.RegionHooks.RegionEntered -= OnRegionEntered;
                 GetDataHandlers.PlayerUpdate -= OnPlayerUpdate;
                 TShockAPI.Hooks.GeneralHooks.ReloadEvent -= OnReload;
                 Config.Write(URI);
@@ -57,7 +63,6 @@ namespace PvPChecks
 
             base.Dispose(disposing);
         }
-
 
         #region Hooks
         private void OnInit(EventArgs args)
@@ -83,12 +88,35 @@ namespace PvPChecks
 
         private void OnGetData(GetDataEventArgs args)
         {
+            /*
+            if (args.Msg.)
 
+            TSPlayer player = TShock.Players[args.Msg.whoAmI];
+
+            if (player == null) return;
+
+            if (!player.TPlayer.hostile) return; 
+
+            if (!player.HasPermission("pvpchecks.useall")) return;
+            */
         }
 
-        #endregion Hooks
+        private void OnRegionEntered(RegionHooks.RegionEnteredEventArgs args)
+        {
+            if (!Config.NotifyEnterRestrictedRegion) return;
 
-        #region DataHandlers
+            if (!Config.EnableRegionCheck) return;
+
+            if (!Config.RestrictedRegions.Contains(args.Region.Name)) return;
+
+            TSPlayer player = args.Player;
+
+            if (player == null) return;
+
+            if (player.HasPermission("pvpchecks.ignoreregion")) return;
+
+            player.SendInfoMessage(Config.Messages["RegionRestricted"]);
+        }
 
         private void OnReload(TShockAPI.Hooks.ReloadEventArgs args)
         {
@@ -102,129 +130,192 @@ namespace PvPChecks
 
             if (player == null) return;
 
-            //If the player isn't in pvp or using an item, skip pvp checking
+            // If the player isn't in pvp or using an item, skip pvp checking
             if (!player.TPlayer.hostile) return;
 
-            //If the player has this permission, skip pvp checking
+            // If the player has this permission, skip pvp checking
             if (player.HasPermission("pvpchecks.useall")) return;
 
-            //Checks whether a player is using a banned item
-            if (!player.HasPermission("pvpchecks.usebannedweps"))
+            List<Item> bannedItems = new List<Item>();
+            List<int> bannedBuffs = new List<int>();
+            List<Infringement> infringements = new List<Infringement>();
+
+            // Check if restricted to restricted regions
+            if (Config.EnableRegionCheck && !player.HasPermission("pvpchecks.ignoreregion"))
             {
-                if (Config.BannedItems.Contains(player.ItemInHand.netID))
-                    DisableAndWarn(player,
-                        Config.Messages["DisableBannedItem"],
-                        Config.Messages["XCannotInPvP"].SFormat(player.ItemInHand.Name));
-                if (Config.BannedItems.Contains(player.SelectedItem.netID))
-                    DisableAndWarn(player,
-                        Config.Messages["DisableBannedItem"],
-                        Config.Messages["XCannotInPvP"].SFormat(player.SelectedItem.Name));
+                Region region = player.CurrentRegion;
+
+                if (region == null) return;
+
+                if (!Config.RestrictedRegions.Contains(region.Name)) return;
+
             }
-                 
 
-                
-
-            //Checks whether a player has a banned buff
-            if(!player.HasPermission("pvpchecks.usebannedbuffs"))
+            // Checks whether a player has a banned buff
+            if (Config.EnableBuffCheck && !player.HasPermission("pvpchecks.usebannedbuffs"))
             {
-                var activeBannedBuffs = player.TPlayer.buffType.Where(type => Config.BannedBuffs.Contains(type)).ToList();
+                bannedBuffs.AddRange(player.TPlayer.buffType.Where(type => Config.BannedBuffs.Contains(type)));
 
-                if (activeBannedBuffs.Count > 0)
+                if (bannedBuffs.Count > 0)
                 {
                     // TODO: Implement buff-saving.
                     // The buffs are removed for now and the player is notified
-                    player.SendErrorMessage(Config.Messages["BuffCannotInPvP"], 
-                        string.Join(", ", activeBannedBuffs.Select(id => TShock.Utils.GetBuffName(id))));
-                    activeBannedBuffs.ForEach(buff => player.SetBuff(buff, 0));
+
+                    // Not used for now since buffs are easily handled.
+                    // infringements.Add(Infringement.BannedBuff);
+
+                    player.SendInfoMessage(Config.Messages["BannedBuffs"], 
+                        string.Join(", ", bannedBuffs.Select(b => TShock.Utils.GetBuffName(b)))
+                        );
+                    bannedBuffs.ForEach(buff => player.SetBuff(buff, 0));
                 }
             }
-            
 
-            //Checks whether a player has illegal prefixed items
-            if (!player.HasPermission("pvpchecks.useillegalweps")) {
-                if (player.ItemInHand.maxStack > 1 || player.SelectedItem.maxStack > 1) {
-                    if (player.ItemInHand.prefix != 0 || player.SelectedItem.prefix != 0)
+            Item selected = player.SelectedItem ?? player.ItemInHand;
+
+            // Checks whether a player is using a banned item
+            if (Config.EnableItemCheck && !player.HasPermission("pvpchecks.usebannedweps"))
+            {
+                if (selected != null)
+                {
+                    if (Config.BannedItems.Contains(selected.netID))
                     {
-                        DisableAndWarn(player, Config.Messages["IllegalPrefix"], Config.Messages["DisableIllegalWeapon"]);
+                        bannedItems.Add(selected);
                     }
-                } else if (player.ItemInHand.melee || player.SelectedItem.melee) {
-                    foreach (int prefixes in IllegalMeleePrefixes) {
-                        if (player.ItemInHand.prefix == prefixes || player.SelectedItem.prefix == prefixes) {
-                            DisableAndWarn(player, Config.Messages["IllegalPrefix"], Config.Messages["DisableIllegalWeapon"]);
-                            break;
-                        }
+                }
+
+                bannedItems.AddRange(player.TPlayer.miscEquips.Where(e => Config.BannedItems.Contains(e.netID)));
+                bannedItems.AddRange(player.TPlayer.armor.Where(a => Config.BannedItems.Contains(a.netID)));
+
+                if (bannedItems.Count > 0)
+                {
+                    infringements.Add(Infringement.BannedItem);
+                }
+            }
+
+            // Checks whether a player has illegal prefixed items
+            if (Config.EnablePrefixCheck && !player.HasPermission("pvpchecks.useillegalweps")) {
+                if (selected != null)
+                {
+                    if ((selected.maxStack > 1 && selected.prefix != 0) ||
+                        (selected.melee && IllegalMeleePrefixes.Contains(selected.prefix)) ||
+                        (selected.ranged && IllegalRangedPrefixes.Contains(selected.prefix)) ||
+                        ((selected.magic || selected.summon || selected.DD2Summon) && IllegalMagicPrefixes.Contains(selected.prefix)))
+                    {
+                        infringements.Add(Infringement.IllegalPrefix);
                     }
-                } else if (player.ItemInHand.ranged || player.SelectedItem.ranged) {
-                    foreach (int prefixes in IllegalRangedPrefixes) {
-                        if (player.ItemInHand.prefix == prefixes || player.SelectedItem.prefix == prefixes) {
-                            DisableAndWarn(player, Config.Messages["IllegalPrefix"], Config.Messages["DisableIllegalWeapon"]);
-                            break;
-                        }
-                    }
-                } else if (player.ItemInHand.magic || player.SelectedItem.magic || player.ItemInHand.summon || player.SelectedItem.summon || player.ItemInHand.DD2Summon || player.SelectedItem.DD2Summon) {
-                    foreach (int prefixes in IllegalMagicPrefixes) {
-                        if (player.ItemInHand.prefix == prefixes || player.SelectedItem.prefix == prefixes) {
-                            DisableAndWarn(player, Config.Messages["IllegalPrefix"], Config.Messages["DisableIllegalWeapon"]);
-                            break;
-                        }
-                    }
+
                 }
             }
 
             //Checks whether a player has prefixed ammo
-            if (!player.HasPermission("pvpchecks.useprefixedammo") && (player.ItemInHand.ranged || player.SelectedItem.ranged)) {
+            if (Config.EnablePrefixCheck && !player.HasPermission("pvpchecks.useprefixedammo") && selected.ranged) {
                 if (player.TPlayer.inventory
                     .Where(item => Config.AmmoIDs.Contains(item.netID) && item.prefix != 0)
                     .Count() > 0)
                 {
-                    DisableAndWarn(player, Config.Messages["PrefixedAmmo"], Config.Messages["DisablePrefixedAmmo"]);
+                    infringements.Add(Infringement.PrefixedAmmo);
                 }
+
             }
 
             //Checks whether a player is wearing prefixed armour
-            if (!player.HasPermission("pvpchecks.useprefixedarmor")) {
+            if (Config.EnablePrefixCheck && !player.HasPermission("pvpchecks.useprefixedarmor")) {
                 for (int index = 0; index < 3; index++) {
                     if (player.TPlayer.armor[index].prefix != 0) {
-                        DisableAndWarn(player, Config.Messages["PrefixedArmor"], Config.Messages["DisablePrefixedArmor"]);
+                        infringements.Add(Infringement.PrefixedArmour);
                         break;
                     }
                 }
             }
 
             // Checks whether a player is wearing duplicate accessories/armor
-            // To all you code diggers, the bool in the Dictionary serves no purpose here
-            if (!player.HasPermission("pvpchecks.havedupeaccessories")) {
-                List<int> duplicate = new List<int>();
-                foreach (Item equips in player.TPlayer.armor) {
-                    if (duplicate.Contains(equips.netID)) {
-                        DisableAndWarn(player, 
-                            Config.Messages["DuplicateAccessory"].SFormat(equips.Name), 
-                            Config.Messages["DisableDuplicateAccessory"]);
-                        break;
-                    } else if (equips.netID != 0) {
-                        duplicate.Add(equips.netID);
-                    }
+            if (Config.EnableDupeCheck && !player.HasPermission("pvpchecks.havedupeaccessories")) {
+                if (player.TPlayer.armor.Count() != player.TPlayer.armor.Distinct().Count())
+                {
+                    infringements.Add(Infringement.Duplication);
                 }
             }
 
             //Checks whether the player is using the unobtainable 7th accessory slot
-            if (!player.HasPermission("pvpchecks.use7thslot")) {
+            if (Config.Enable7thSlotCheck && !player.HasPermission("pvpchecks.use7thslot")) {
                 if (player.TPlayer.armor[9].netID != 0) {
-                    DisableAndWarn(player,
-                            Config.Messages["UsedSeventhSlot"],
-                            Config.Messages["DisableSeventhSlot"]);
+                    infringements.Add(Infringement.SeventhSlot);
                 }
+            }
+
+            if (infringements.Count > 0)
+            {
+                player.Disable();
+
+                if (Config.DisablePvP)
+                    player.SetPvP(false);
+
+                // Prepare the message every MessageDisplayDelayInMS
+                if (player.ContainsData("pvpchecks_lastwarned"))
+                {
+                    if ((DateTime.UtcNow - DateTime.Parse(player.GetData<string>("pvpchecks_lastwarned"))).TotalMilliseconds < Config.MessageDisplayDelayInMS)
+                        return;
+                }
+
+                StringBuilder sb = new StringBuilder(Config.Messages["PlayerHasInfringement"]);
+
+                foreach (Infringement infringement in infringements)
+                {
+                    switch (infringement)
+                    {
+                        case Infringement.BannedItem:
+                            sb.AppendLine(Config.Messages["BannedItems"]
+                                .SFormat(string.Join(", ", bannedItems.Select(i => i.Name)))
+                                );
+                            break;
+
+                        case Infringement.BannedBuff:
+                            // No current implementation
+                            break;
+
+                        case Infringement.IllegalPrefix:
+                            sb.AppendLine(Config.Messages["IllegalPrefix"]);
+                            break;
+
+                        case Infringement.PrefixedArmour:
+                            sb.AppendLine(Config.Messages["PrefixedArmor"]);
+                            break;
+
+                        case Infringement.PrefixedAmmo:
+                            sb.AppendLine(Config.Messages["PrefixedAmmo"]);
+                            break;
+
+                        case Infringement.Duplication:
+                            sb.AppendLine(Config.Messages["DuplicateAccessory"]);
+                            break;
+
+                        case Infringement.SeventhSlot:
+                            sb.AppendLine(Config.Messages["UsedSeventhSlot"]);
+                            break;
+                    }
+                }
+
+                player.SetData<string>("pvpchecks_lastwarned", DateTime.UtcNow.ToString());
+                player.SendErrorMessage(sb.ToString());
+
             }
         }
 
-        #endregion DataHandlers
-
+        #endregion Hooks
+        
         public void OnCommand(CommandArgs args)
         {
             switch (args.Parameters.FirstOrDefault())
             {
                 case "help":
                 case "h":
+                    if (!args.Player.HasPermission("pvpchecks.command.help"))
+                    {
+                        args.Player.SendErrorMessage(Config.Messages["NoPermission"]);
+                        return;
+                    }
+
                     args.Player.SendInfoMessage(Config.Messages["HelpCommand"]);
                     break;
 
@@ -233,6 +324,12 @@ namespace PvPChecks
                 case "ai":
                 case "removeitem":
                 case "ri":
+                    if (!args.Player.HasPermission("pvpchecks.command.edit"))
+                    {
+                        args.Player.SendErrorMessage(Config.Messages["NoPermission"]);
+                        return;
+                    }
+
                     {
                         bool add = args.Parameters[0][0] == 'a';
 
@@ -270,12 +367,17 @@ namespace PvPChecks
                     break;
                 #endregion Item Subcommands
 
-                // TODO FIX
                 #region Projectile Subcommands
                 case "addproj":
                 case "ap":
                 case "removeproj":
                 case "rp":
+                    if (!args.Player.HasPermission("pvpchecks.command.edit"))
+                    {
+                        args.Player.SendErrorMessage(Config.Messages["NoPermission"]);
+                        return;
+                    }
+
                     {
                         bool add = args.Parameters[0][0] == 'a';
 
@@ -290,13 +392,13 @@ namespace PvPChecks
 
                         if (Config.BannedProjectiles.Contains(projID) && add)
                         {
-                            args.Player.SendErrorMessage(Config.Messages["ItemAddAlreadyExists"], projID);
+                            args.Player.SendErrorMessage(Config.Messages["ProjectileAddAlreadyExists"], projID);
                             return;
                         }
 
                         if (!Config.BannedProjectiles.Contains(projID) && !add)
                         {
-                            args.Player.SendErrorMessage(Config.Messages["ItemRemoveNotExist"], projID);
+                            args.Player.SendErrorMessage(Config.Messages["ProjectileRemoveNotExist"], projID);
                             return;
                         }
 
@@ -304,8 +406,8 @@ namespace PvPChecks
                         if (add) Config.BannedProjectiles.Add(projID);
                         else Config.BannedProjectiles.Remove(projID);
 
-                        args.Player.SendSuccessMessage(add ? Config.Messages["SuccessAddItem"]
-                                                           : Config.Messages["SuccessDelItem"], projID);
+                        args.Player.SendSuccessMessage(add ? Config.Messages["SuccessAddProjectile"]
+                                                           : Config.Messages["SuccessDelProjectile"], projID);
                     }
 
                     break;
@@ -316,9 +418,13 @@ namespace PvPChecks
                 case "ar":
                 case "removeregion":
                 case "rr":
+                    if (!args.Player.HasPermission("pvpchecks.command.edit"))
                     {
-                        args.Player.SendErrorMessage(Config.Messages["NotImplementedMessage"]);
-                        /*
+                        args.Player.SendErrorMessage(Config.Messages["NoPermission"]);
+                        return;
+                    }
+
+                    {
                         bool add = args.Parameters[0][0] == 'a';
 
                         if (args.Parameters.Count() != 2)
@@ -355,8 +461,7 @@ namespace PvPChecks
                         args.Player.SendSuccessMessage(add ? Config.Messages["SuccessAddRegion"]
                                                            : Config.Messages["SuccessDelRegion"], region.Name);
 
-                    }
-                    */
+                 
                         break;
                     }
                 #endregion Region Subcommand
@@ -366,6 +471,12 @@ namespace PvPChecks
                 case "ab":
                 case "removebuff":
                 case "rb":
+                    if (!args.Player.HasPermission("pvpchecks.command.edit"))
+                    {
+                        args.Player.SendErrorMessage(Config.Messages["NoPermission"]);
+                        return;
+                    }
+
                     {
                         bool add = args.Parameters[0][0] == 'a';
 
@@ -375,9 +486,7 @@ namespace PvPChecks
                             return;
                         }
 
-                        int buff;
-
-                        if (!Int32.TryParse(args.Parameters[1], out buff))
+                        if (!Int32.TryParse(args.Parameters[1], out int buff))
                         {
                             args.Player.SendErrorMessage(Config.Messages["InvalidBuffType"], args.Parameters[1]);
                             return;
@@ -412,6 +521,12 @@ namespace PvPChecks
                 #region List Subcommand
                 case "list":
                 case "l":
+                    if (!args.Player.HasPermission("pvpchecks.command.list"))
+                    {
+                        args.Player.SendErrorMessage(Config.Messages["NoPermission"]);
+                        return;
+                    }
+
                     // Defaults to showing a list of banned items if no tag is provided.
                     if (args.Parameters.Count < 2)
                     {
@@ -468,12 +583,6 @@ namespace PvPChecks
                     args.Player.SendErrorMessage(Config.Messages["InvalidSyntaxDefault"]);
                     break;
             }
-        }
-
-        private void DisableAndWarn(TSPlayer player, string warning, string errorMessage)
-        {
-            player.Disable(warning, DisableFlags.WriteToLog);
-            player.SendErrorMessage(errorMessage);
         }
 
         private Item ItemFromString(TSPlayer player, string itemName)

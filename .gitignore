@@ -69,3 +69,7 @@ packages/*
 
 # Private key files #
 scripts/ssh_private_key
+
+/bin
+/lib
+/references
