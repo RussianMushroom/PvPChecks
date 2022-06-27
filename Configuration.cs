@@ -7,10 +7,25 @@ namespace PvPChecks
     public class Configuration 
     {
         #region ConfigVariables
+
+        public bool EnableRegionCheck = false;
+        public bool EnableItemCheck = true;
+        public bool EnableBuffCheck = true;
+        public bool EnablePrefixCheck = true;
+        public bool EnableDupeCheck = true;
+        public bool Enable7thSlotCheck = false;
+
+        public bool DisablePvP = false;
+        public bool NotifyEnterRestrictedRegion = true;
+
+        public int MessageDisplayDelayInMS = 10000;
+
         public List<int> BannedItems = new List<int>();
         public List<int> BannedBuffs = new List<int>();
         public List<int> BannedProjectiles = new List<int>();
         public List<int> PvPBuffs = new List<int>();
+
+        public List<string> RestrictedRegions = new List<string>();
 
         public int[] AmmoIDs = new int[] 
         {
@@ -52,10 +67,11 @@ namespace PvPChecks
             26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 52, 83
         };
 
-        public List<string> RestrictedRegions = new List<string>();
 
         public Dictionary<string, string> Messages = new Dictionary<string, string>()
         {
+            { "NoPermission", "You do not have the permission to use this command!" },
+
             { "NotImplementedMessage", "This command has not been fully implemented yet! Refer to /pvpchecks help for more." },
             { "InvalidSyntaxDefault", "Invalid syntax. Refer to /pvpchecks help for more." },
 
@@ -68,10 +84,10 @@ namespace PvPChecks
             { "SuccessDelItem", "{0} has been removed from the list of banned items!" },
 
             { "InvalidSyntaxAddDelProjectile", "Invalid syntax. Proper syntax: /pvpchecks <addproj, removeproj> <projectile name | ID> <new damage>" },
-            //{ "ItemAddAlreadyExists", "{0} has already been added to the item ban list!" },
-            //{ "ItemRemoveNotExist", "{0} is not in the item ban list!" },
-            //{ "SuccessAddItem", "{0} has been added to the list of banned items!" },
-            //{ "SuccessDelItem", "{0} has been removed from the list of banned items!" },
+            { "ProjectileAddAlreadyExists", "{0} has already been added to the projectile ban list!" },
+            { "ProjectileRemoveNotExist", "{0} is not in the projectile ban list!" },
+            { "SuccessAddProjectile", "{0} has been added to the list of banned protectiles!" },
+            { "SuccessDelProjectile", "{0} has been removed from the list of banned prjectiles!" },
 
             { "NoSuchRegion", "{0} is not a valid region!" },
             { "InvalidSyntaxAddDelRegion", "Invalid syntax. Proper syntax: /pvpchecks <addregion, removeregion> <region name>" },
@@ -95,21 +111,17 @@ namespace PvPChecks
 
             { "InvalidItemType", "Invalid item type!" },
 
-            { "XCannotInPvP", "{0} is banned from PvP, please unequip!" },
-            { "BuffCannotInPvP", "The following buffs are not allowed in PvP: {0}. They have been removed." },
+            { "RegionRestricted", "This region has PvP restrictions! For more information, use /pvpchecks info"},
+
+            { "BannedBuffs", "The following buffs were removed: {0}." },
+
+            { "PlayerHasInfringement", "You have been disabled for not following the PvP rules of this server. Please unequip the following:\n" },
+            { "BannedItems", "Using the following banned items: {0}" },
             { "IllegalPrefix", "Illegally prefixed weapons are not allowed in PvP, please unequip!" },
             { "PrefixedAmmo", "Prefixed ammo is not allowed in PvP, please unequip!" },
             { "PrefixedArmor", "Prefixed armour is not allowed in PvP, please unequip!" },
-            { "DuplicateAccessory", "Please remove the duplicate accessory for PvP: {0}" },
-            { "UsedSeventhSlot", "The 7th accessory slot cannot be used in PvP." },
-
-            // DISABLE REASONS
-            { "DisableBannedItem", "Used banned item." },
-            { "DisableIllegalWeapon", "Used illegal weapon." },
-            { "DisablePrefixedAmmo", "Used prefixed ammo." },
-            { "DisablePrefixedArmor", "Used prefixed armor." },
-            { "DisableDuplicateAccessory", "Used duplicate accessories." },
-            { "DisableSeventhSlot", "Used 7th accessory slot." },
+            { "DuplicateAccessory", "Please remove all duplicate accessories for PvP" },
+            { "UsedSeventhSlot", "Please unequip The 7th accessory slot." },
 
         };
 
