@@ -1,4 +1,5 @@
 # PvPChecks
+Plugin for Terraria servers running TShock.
 Checks for illegitimate PvP equipment
 
 ## Features:
@@ -12,6 +13,7 @@ Base permission: `pvpchecks`
 Function | Permission | 
 --- | --- | 
 Override all checks | `.all` | 
+Ignore region bans | `.ignoreregion` |
 Banned items | `.usebannedweps` | 
 Banned buffs | `.usebannedbuffs` | 
 All prefixed weapons | `.useillegalweps` | 
@@ -19,3 +21,11 @@ Prefixed ammo | `.useprefixedammo` |
 Prefixed amour | `.useprefixedarmor` | 
 Duplicate accessories | `.havedupeaccessories`|
 7th accessory slot | `.use7thslot` |
+
+Command permission: `pvpchecks.command`
+
+Command | Permission | 
+--- | --- | 
+`/pc help` | `.help` | 
+`/pc <ai, ri, ab, rb, ap, rp, ar, rr>` | `.edit` |
+`/pc list` | `.list` | 
