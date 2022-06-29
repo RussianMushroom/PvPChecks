@@ -48,7 +48,6 @@ namespace PvPChecks
         
         protected override void Dispose(bool disposing) 
         {
-
             if (disposing)
             {
                 ServerApi.Hooks.GameInitialize.Deregister(this, OnInit);
@@ -69,6 +68,7 @@ namespace PvPChecks
         {
             Config = Configuration.Read(URI);
 
+            // Setting up class-exclusive prefixes
             IllegalMeleePrefixes.AddRange(Config.RangedPrefixIDs);
             IllegalMeleePrefixes.AddRange(Config.MagicPrefixIDs);
 
@@ -124,7 +124,7 @@ namespace PvPChecks
             args?.Player?.SendSuccessMessage("[PvPChecks] Successfully reloaded config.");
         }
 
-        public void OnPlayerUpdate(object sender, GetDataHandlers.PlayerUpdateEventArgs args) 
+        private void OnPlayerUpdate(object sender, GetDataHandlers.PlayerUpdateEventArgs args) 
         {
             TSPlayer player = TShock.Players[args.PlayerId];
 
@@ -304,10 +304,11 @@ namespace PvPChecks
 
         #endregion Hooks
         
-        public void OnCommand(CommandArgs args)
+        private void OnCommand(CommandArgs args)
         {
             switch (args.Parameters.FirstOrDefault())
             {
+                #region Help Subcommand
                 case "help":
                 case "h":
                     if (!args.Player.HasPermission("pvpchecks.command.help"))
@@ -318,6 +319,7 @@ namespace PvPChecks
 
                     args.Player.SendInfoMessage(Config.Messages["HelpCommand"]);
                     break;
+                #endregion Help Subcommand
 
                 #region Item Subcommands
                 case "additem":
@@ -486,34 +488,34 @@ namespace PvPChecks
                             return;
                         }
 
-                        if (!Int32.TryParse(args.Parameters[1], out int buff))
-                        {
-                            args.Player.SendErrorMessage(Config.Messages["InvalidBuffType"], args.Parameters[1]);
-                            return;
-                        }
+                        int buff = BuffFromString(args.Player, args.Parameters[1]);
+
+                        if (buff < 0) return;
+
+                        string buffName = TShock.Utils.GetBuffName(buff);
 
                         if (!add)
                         {
                             if (!Config.BannedBuffs.Contains(buff))
                             {
-                                args.Player.SendErrorMessage(Config.Messages["BuffRemoveNotExist"], args.Parameters[1]);
+                                args.Player.SendErrorMessage(Config.Messages["BuffRemoveNotExist"], buffName);
                                 return;
                             }
 
                             Config.BannedBuffs.Remove(buff);
-                            args.Player.SendSuccessMessage(Config.Messages["SuccessDelBuff"], args.Parameters[1]);
+                            args.Player.SendSuccessMessage(Config.Messages["SuccessDelBuff"], buffName);
                             return;
                         }
 
                         if (add && Config.BannedBuffs.Contains(buff))
                         {
-                            args.Player.SendErrorMessage(Config.Messages["BuffAddAlreadyExist"], args.Parameters[1]);
+                            args.Player.SendErrorMessage(Config.Messages["BuffAddAlreadyExist"], buffName);
                             return;
                         }
 
-                        // TODO: Add check for valid buff ID
                         Config.BannedBuffs.Add(buff);
-                        args.Player.SendSuccessMessage(Config.Messages["SuccessAddBuff"], TShock.Utils.GetBuffName(buff));
+                        args.Player.SendSuccessMessage(Config.Messages["SuccessAddBuff"], buffName);
+
                         break;
                     }
                 #endregion Buff Subcommand
@@ -564,6 +566,7 @@ namespace PvPChecks
                             args.Player.SendInfoMessage(Config.Messages["ListBannedProjectiles"],
                             string.Join(", ", Config.BannedProjectiles));
                             break;
+
                         case "-b":
                         case "b":
                         case "buff":
@@ -571,7 +574,9 @@ namespace PvPChecks
                             args.Player.SendInfoMessage(Config.Messages["ListBannedBuffs"],
                             string.Join(", ", Config.BannedBuffs.Select(id => TShock.Utils.GetBuffName(id))));
                             break;
+
                         default:
+                            args.Player.SendErrorMessage(Config.Messages["ListInvalidSubCommand"]);
                             break;
                     }
 
@@ -585,16 +590,23 @@ namespace PvPChecks
             }
         }
 
-        private Item ItemFromString(TSPlayer player, string itemName)
+        #region Helper Methods
+
+        /// <summary>
+        /// Get item from string, warn user if invalid.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <param name="itemNameOrId"></param>
+        /// <returns></returns>
+        private Item ItemFromString(TSPlayer player, string itemNameOrId)
         {
-            List<Item> matchedItems = TShock.Utils.GetItemByIdOrName(itemName);
+            List<Item> matchedItems = TShock.Utils.GetItemByIdOrName(itemNameOrId);
 
             if (matchedItems.Count == 0)
             {
                 player.SendErrorMessage(Config.Messages["InvalidItemType"]);
                 return null;
             }
-
             else if (matchedItems.Count > 1)
             {
                 player.SendMultipleMatchError(matchedItems.Select(i => $"{i.Name}({i.netID})"));
@@ -603,5 +615,45 @@ namespace PvPChecks
 
             return matchedItems.First();
         }
+
+        /// <summary>
+        /// Tries to map user input to a buff id
+        /// Warns user on incorrect input
+        /// </summary>
+        /// <param name="player"></param>
+        /// <param name="buffNameOrId">Buff name or id as string</param>
+        /// <returns>Buff id if successfully converted else -1</returns>
+        private int BuffFromString(TSPlayer player, string buffNameOrId)
+        {
+            if (!Int32.TryParse(buffNameOrId, out int buff))
+            {
+                // Could not be parsed to string, interpreted as buff name
+                List<int> matchedBuffs = TShock.Utils.GetBuffByName(buffNameOrId);
+
+                if (matchedBuffs.Count == 0)
+                {
+                    player.SendErrorMessage(Config.Messages["InvalidBuffType"]);
+                    return -1;
+                }
+                else if (matchedBuffs.Count > 1)
+                {
+                    player.SendMultipleMatchError(matchedBuffs.Select(i => $"{TShock.Utils.GetBuffName(i)}({i})"));
+                    return -1;
+                }
+
+                return matchedBuffs.First();
+            }
+
+            // TODO: find reference in Terraria.Main or TShock for MAX_BUFFS
+            if (buff >= 338 || buff < 1)
+            {
+                player.SendErrorMessage(Config.Messages["InvalidBuffType"]);
+                return -1;
+            }
+
+            return buff;
+        }
+
+        #endregion Helper Methods
     }
 }
