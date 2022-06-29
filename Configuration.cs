@@ -97,7 +97,6 @@ namespace PvPChecks
             { "SuccessDelRegion", "{0} has been removed from the list of restricted regions!" },
 
             { "InvalidSyntaxAddDelBuff", "Invalid syntax. Proper syntax: /pvpchecks <addbuff, removebuff> <buff id>" },
-            { "InvalidBuffType", "{0} is not a valid buff ID!" },
             { "BuffRemoveNotExist", "{0} is not in the buff ban list!" },
             { "BuffAddAlreadyExist", "{0} has already been added to the buff ban list!" },
             { "SuccessAddBuff", "{0} has been added to the list of banned buffs!" },
@@ -107,9 +106,10 @@ namespace PvPChecks
             { "ListBannedProjectiles", "The list of banned projectiles:\n{0}" },
             { "ListBannedBuffs", "The list of banned buffs:\n{0}" },
             { "ListBannedRegions", "The list of restricted regions:\n{0}" },
-            { "ListInvalidSubCommand", "Invalid syntax. Proper syntax: /pvpchecks list <i | r | p>" },
+            { "ListInvalidSubCommand", "Invalid syntax. Proper syntax: /pvpchecks list <i|r|p|b>" },
 
             { "InvalidItemType", "Invalid item type!" },
+            { "InvalidBuffType", "Invalid buff type!" },
 
             { "RegionRestricted", "This region has PvP restrictions! For more information, use /pvpchecks info"},
 
