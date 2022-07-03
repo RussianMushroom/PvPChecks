@@ -10,10 +10,11 @@ namespace PvPChecks
 
         public bool EnableRegionCheck = false;
         public bool EnableItemCheck = true;
-        public bool EnableBuffCheck = true;
+        public bool EnableBuffCheck = false;
         public bool EnablePrefixCheck = true;
         public bool EnableDupeCheck = true;
         public bool Enable7thSlotCheck = false;
+        public bool EnableProjectileCheck = false;
 
         public bool DisablePvP = false;
         public bool NotifyEnterRestrictedRegion = true;
@@ -113,7 +114,7 @@ namespace PvPChecks
 
             { "RegionRestricted", "This region has PvP restrictions! For more information, use /pvpchecks info"},
 
-            { "BannedBuffs", "The following buffs were removed: {0}." },
+            { "BannedBuffs", "You have enabled PvP. Banned buffs will automatically be removed." },
 
             { "PlayerHasInfringement", "You have been disabled for not following the PvP rules of this server. Please unequip the following:\n" },
             { "BannedItems", "Using the following banned items: {0}" },
