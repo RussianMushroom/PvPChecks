@@ -39,11 +39,13 @@ namespace PvPChecks
         {
             ServerApi.Hooks.GameInitialize.Register(this, OnInit);
             ServerApi.Hooks.WorldSave.Register(this, OnSave);
-            ServerApi.Hooks.NetGetData.Register(this, OnGetData);
+            // ServerApi.Hooks.NetGetData.Register(this, OnGetData);
 
-            TShockAPI.Hooks.RegionHooks.RegionEntered += OnRegionEntered;
+            RegionHooks.RegionEntered += OnRegionEntered;
             GetDataHandlers.PlayerUpdate += OnPlayerUpdate;
-            TShockAPI.Hooks.GeneralHooks.ReloadEvent += OnReload;
+            GeneralHooks.ReloadEvent += OnReload;
+
+            
         }
         
         protected override void Dispose(bool disposing) 
@@ -52,11 +54,11 @@ namespace PvPChecks
             {
                 ServerApi.Hooks.GameInitialize.Deregister(this, OnInit);
                 ServerApi.Hooks.WorldSave.Deregister(this, OnSave);
-                ServerApi.Hooks.NetGetData.Deregister(this, OnGetData);
+                // ServerApi.Hooks.NetGetData.Deregister(this, OnGetData);
 
-                TShockAPI.Hooks.RegionHooks.RegionEntered -= OnRegionEntered;
+                RegionHooks.RegionEntered -= OnRegionEntered;
                 GetDataHandlers.PlayerUpdate -= OnPlayerUpdate;
-                TShockAPI.Hooks.GeneralHooks.ReloadEvent -= OnReload;
+                GeneralHooks.ReloadEvent -= OnReload;
                 Config.Write(URI);
             }
 
@@ -88,19 +90,43 @@ namespace PvPChecks
 
         private void OnGetData(GetDataEventArgs args)
         {
-            /*
-            if (args.Msg.)
+            
+            if (args.MsgID == PacketTypes.TogglePvp)
+            {
+                TSPlayer player = TShock.Players[args.Msg.whoAmI];
+                if (player == null) return;
+                
+                if (args.Msg.readBuffer[4] == 1)
+                {
+                    OnTogglePvPOn(player);
+                    return;
+                }
+            }
 
-            TSPlayer player = TShock.Players[args.Msg.whoAmI];
+            else if (args.MsgID == PacketTypes.ProjectileNew)
+            {
+                if (!Config.EnableProjectileCheck) return;
+                
+                TSPlayer player = TShock.Players[args.Msg.whoAmI];
 
-            if (player == null) return;
+                if (player == null) return;
 
-            if (!player.TPlayer.hostile) return; 
+                if (!player.TPlayer.hostile) return;
 
-            if (!player.HasPermission("pvpchecks.useall")) return;
-            */
+                if (!player.HasPermission("pvpchecks.useall")) return;
+
+                // TODO: Await implementation of projectile ban
+                return;
+            }
+
+
         }
 
+        /// <summary>
+        /// If NotifyEnterRestrictedRegion is enabled, notify player upon entering restricted region
+        /// Exempt: pvpchecks.ignoreregion
+        /// </summary>
+        /// <param name="args"></param>
         private void OnRegionEntered(RegionHooks.RegionEnteredEventArgs args)
         {
             if (!Config.NotifyEnterRestrictedRegion) return;
@@ -118,12 +144,17 @@ namespace PvPChecks
             player.SendInfoMessage(Config.Messages["RegionRestricted"]);
         }
 
-        private void OnReload(TShockAPI.Hooks.ReloadEventArgs args)
+        private void OnReload(ReloadEventArgs args)
         {
             Config = Configuration.Read(URI);
             args?.Player?.SendSuccessMessage("[PvPChecks] Successfully reloaded config.");
         }
 
+        /// <summary>
+        /// Run all item checks as defined in configuration file.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
         private void OnPlayerUpdate(object sender, GetDataHandlers.PlayerUpdateEventArgs args) 
         {
             TSPlayer player = TShock.Players[args.PlayerId];
@@ -152,23 +183,10 @@ namespace PvPChecks
             }
 
             // Checks whether a player has a banned buff
+            // Will deal with buffs added during pvp. Permabuffs active upon togglePvP are handled by NetGetData
             if (Config.EnableBuffCheck && !player.HasPermission("pvpchecks.usebannedbuffs"))
             {
-                bannedBuffs.AddRange(player.TPlayer.buffType.Where(type => Config.BannedBuffs.Contains(type)));
-
-                if (bannedBuffs.Count > 0)
-                {
-                    // TODO: Implement buff-saving.
-                    // The buffs are removed for now and the player is notified
-
-                    // Not used for now since buffs are easily handled.
-                    // infringements.Add(Infringement.BannedBuff);
-
-                    player.SendInfoMessage(Config.Messages["BannedBuffs"], 
-                        string.Join(", ", bannedBuffs.Select(b => TShock.Utils.GetBuffName(b)))
-                        );
-                    bannedBuffs.ForEach(buff => player.SetBuff(buff, 0));
-                }
+                // TODO check for banned buffs and remove them from the player
             }
 
             Item selected = player.SelectedItem ?? player.ItemInHand;
@@ -302,8 +320,33 @@ namespace PvPChecks
             }
         }
 
+        /// <summary>
+        /// If EnableRegionCheck is enabled, notify player about buff deletion upon enabling pvp
+        /// Exempt: pvpchecks.ignoreregion, pvpchecks.usebannedbuffs
+        /// </summary>
+        /// <param name="player"></param>
+        private void OnTogglePvPOn(TSPlayer player)
+        {
+            if (Config.EnableBuffCheck && !player.HasPermission("pvpchecks.usebannedbuffs"))
+            {
+                // Check if restricted to restricted regions
+                if (Config.EnableRegionCheck && !player.HasPermission("pvpchecks.ignoreregion"))
+                {
+                    Region region = player.CurrentRegion;
+
+                    if (region == null) return;
+
+                    if (!Config.RestrictedRegions.Contains(region.Name)) return;
+
+                }
+
+                // Notify player that all banned buffs will be cancelled until pvp off
+                player.SendInfoMessage(Config.Messages["BannedBuffs"]);
+            }
+
+        }
         #endregion Hooks
-        
+
         private void OnCommand(CommandArgs args)
         {
             switch (args.Parameters.FirstOrDefault())
