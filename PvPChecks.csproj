@@ -34,9 +34,9 @@
     <DocumentationFile>..\..\..\Documents\Terraria\Server\ServerPlugins\PvPChecks.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Main.cs" />
-    <Compile Include="Configuration.cs" />
-    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="PvPChecks\Main.cs" />
+    <Compile Include="PvPChecks\Configuration.cs" />
+    <Compile Include="PvPChecks\Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -56,5 +56,6 @@
       <HintPath>..\..\..\Documents\Terraria\Server\ServerPlugins\TShockAPI.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
