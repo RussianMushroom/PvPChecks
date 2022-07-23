@@ -30,7 +30,7 @@ namespace PvPChecks
 
         public enum Infringement
         {
-            BannedItem, BannedBuff, IllegalPrefix, PrefixedArmour, PrefixedAmmo, Duplication, SeventhSlot
+            BannedItem, BannedBuff, DuplicateBuff, IllegalPrefix, PrefixedArmour, PrefixedAmmo, Duplication, SeventhSlot
         }
 
         public Main(Terraria.Main game) : base(game) { }
@@ -169,6 +169,7 @@ namespace PvPChecks
 
             List<Item> bannedItems = new List<Item>();
             List<int> bannedBuffs = new List<int>();
+
             List<Infringement> infringements = new List<Infringement>();
 
             // Check if restricted to restricted regions
@@ -186,7 +187,17 @@ namespace PvPChecks
             // Will deal with buffs added during pvp. Permabuffs active upon togglePvP are handled by NetGetData
             if (Config.EnableBuffCheck && !player.HasPermission("pvpchecks.usebannedbuffs"))
             {
-                // TODO check for banned buffs and remove them from the player
+                // Check for duplicate buffs and then disable the player
+                if (player.TPlayer.buffType.Count() != player.TPlayer.buffType.Distinct().Count())
+                    infringements.Add(Infringement.DuplicateBuff);
+
+
+                // Check for banned buffs on the player
+                player.TPlayer.buffType.Distinct().Where(b => Config.BannedBuffs.Contains(b)).ForEach(b => bannedBuffs.Add(b));
+
+                if (bannedBuffs.Count > 0)
+                    infringements.Add(Infringement.BannedBuff);
+
             }
 
             Item selected = player.SelectedItem ?? player.ItemInHand;
@@ -289,7 +300,13 @@ namespace PvPChecks
                             break;
 
                         case Infringement.BannedBuff:
-                            // No current implementation
+                            sb.AppendLine(Config.Messages["BannedBuff"]
+                                .SFormat(string.Join(", ", bannedBuffs.Select(b => TShock.Utils.GetBuffName(b))))
+                                );
+                            break;
+
+                        case Infringement.DuplicateBuff:
+                            sb.AppendLine(Config.Messages["DuplicateBuff"]);
                             break;
 
                         case Infringement.IllegalPrefix:

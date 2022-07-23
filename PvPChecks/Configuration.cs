@@ -22,9 +22,8 @@ namespace PvPChecks
         public int MessageDisplayDelayInMS = 10000;
 
         public List<int> BannedItems = new List<int>();
-        public List<int> BannedBuffs = new List<int>();
+        public List<int> BannedBuffs = new List<int> { 10, 59, 173, 174, 175, 176, 177, 178, 179, 180, 181, 151, 58, 165, 311, 308, 314, 215, 89, 63, 146 };
         public List<int> BannedProjectiles = new List<int>();
-        public List<int> PvPBuffs = new List<int>();
 
         public List<string> RestrictedRegions = new List<string>();
 
@@ -114,10 +113,10 @@ namespace PvPChecks
 
             { "RegionRestricted", "This region has PvP restrictions! For more information, use /pvpchecks info"},
 
-            { "BannedBuffs", "You have enabled PvP. Banned buffs will automatically be removed." },
-
             { "PlayerHasInfringement", "You have been disabled for not following the PvP rules of this server. Please unequip the following:\n" },
             { "BannedItems", "Using the following banned items: {0}" },
+            { "BannedBuff", "Using the following banned buffs: {0}" },
+            { "DuplicateBuff", "Please remove all duplicate buffs!" },
             { "IllegalPrefix", "Illegally prefixed weapons are not allowed in PvP, please unequip!" },
             { "PrefixedAmmo", "Prefixed ammo is not allowed in PvP, please unequip!" },
             { "PrefixedArmor", "Prefixed armour is not allowed in PvP, please unequip!" },
