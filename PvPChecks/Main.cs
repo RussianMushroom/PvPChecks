@@ -159,7 +159,7 @@ namespace PvPChecks
         {
             TSPlayer player = TShock.Players[args.PlayerId];
 
-            if (player == null) return;
+            if (player?.TPlayer == null) return;
 
             // If the player isn't in pvp or using an item, skip pvp checking
             if (!player.TPlayer.hostile) return;
@@ -188,9 +188,8 @@ namespace PvPChecks
             if (Config.EnableBuffCheck && !player.HasPermission("pvpchecks.usebannedbuffs"))
             {
                 // Check for duplicate buffs and then disable the player
-                if (player.TPlayer.buffType.Count() != player.TPlayer.buffType.Distinct().Count())
+                if (player.TPlayer.buffType.Where(b => b != 0).Count() != player.TPlayer.buffType.Where(b => b != 0).Distinct().Count())
                     infringements.Add(Infringement.DuplicateBuff);
-
 
                 // Check for banned buffs on the player
                 player.TPlayer.buffType.Distinct().Where(b => Config.BannedBuffs.Contains(b)).ForEach(b => bannedBuffs.Add(b));
